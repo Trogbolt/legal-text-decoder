@@ -103,38 +103,52 @@ Current configuration:
 
 - Thresholds: 19.0, 31.0, 46.0, 70.0
 - **Accuracy:** 0.2987  
-- **F1-weighted:** 0.3148
+- **F1-weighted:** 0.3148  
+
+This simple heuristic baseline provides a weak reference point and demonstrates that word count alone is insufficient for modeling legal text understandability.
+
+---
 
 ### Baseline 2 — TF-IDF + Logistic Regression
 
 - **Accuracy:** 0.4347  
-- **F1-weighted:** 0.4099
+- **F1-weighted:** 0.4099  
+
+The TF-IDF baseline significantly outperforms the heuristic approach and serves as a strong classical machine learning reference.
+
+---
 
 ### Fine-tuned Transformer — BERT (`bert-base-multilingual-cased`)
 
-Training device:
+**Training device:**
 - CUDA GPU: **NVIDIA GeForce GTX 1650**
 
-Model size:
+**Model size:**
 - Total parameters: **177,857,285**
 - Trainable parameters: **177,857,285**
 - Frozen parameters: **0**
 
-Best validation result saved as `model_best` (based on **val F1-weighted**):
-- Best observed val F1-weighted: **0.4379** (epoch 4)
+The multilingual BERT model was fine-tuned end-to-end for a 5-class text classification task.  
+Early stopping was applied based on validation **F1-weighted** score.
 
-Final test evaluation (model_best):
-- **Test accuracy:** 0.4240  
-- **Test F1-weighted:** 0.4233  
-- Confusion matrix and classification report are printed in the log.
+**Best validation result (`model_best`):**
+- Best observed **val F1-weighted:** **0.4521** (epoch 3)
+
+**Final test evaluation (`model_best`):**
+- **Test accuracy:** **0.4640**  
+- **Test F1-weighted:** **0.4573**  
+
+A full classification report and confusion matrix are available in `log/run.log`.
+
+---
 
 ### Quick comparison
 
 | Model | Accuracy | F1-weighted |
 |------|----------:|------------:|
 | Word-count heuristic | 0.2987 | 0.3148 |
-| TF-IDF + LR | **0.4347** | 0.4099 |
-| Fine-tuned BERT | 0.4240 | **0.4233** |
+| TF-IDF + Logistic Regression | 0.4347 | 0.4099 |
+| **Fine-tuned BERT** | **0.4640** | **0.4573** |
 
 ## Docker Instructions
 

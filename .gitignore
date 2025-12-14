@@ -53,8 +53,6 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-*.log
-
 .env.*
 !.env.example
 

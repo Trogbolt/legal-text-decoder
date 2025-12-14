@@ -158,7 +158,7 @@ def main():
     train_loader = DataLoader(
         TextDataset(train_df["text"].tolist(), train_labels, tokenizer, config.MAX_LENGTH),
         batch_size=config.TRAIN_BATCH_SIZE,
-        shuffle=False,
+        shuffle=True,
     )
     val_loader = DataLoader(
         TextDataset(val_df["text"].tolist(), val_labels, tokenizer, config.MAX_LENGTH),

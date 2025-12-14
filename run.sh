@@ -1,15 +1,33 @@
-#!/usr/bin/env bash
-# run.sh - run the full pipeline scripts in order
-# This script is used by the Docker image and local testing to execute the
-# main pipeline stages in sequence for demonstration purposes.
+#!/bin/bash
+set -e
 
-set -euo pipefail
+cd /app/src
 
-echo "[run.sh] Starting full pipeline run at $(date --iso-8601=seconds)"
+echo "=================================================="
+echo "Pipeline started at: $(date)"
+echo "=================================================="
 
-python src/01-data-preprocessing.py
-python src/02-training.py
-python src/03-evaluation.py
-python src/04-inference.py
+echo "=== STEP 0: DOWNLOAD AND UNPACK ==="
+python 00_download_and_unpack.py
 
-echo "[run.sh] Pipeline finished at $(date --iso-8601=seconds)"
+echo "=== STEP 1: DATA PROCESSING ==="
+python 01_data_preprocessing.py
+
+echo "=== HEURISTIC BASELINE (WORD COUNT) ==="
+python baseline_heuristic.py
+
+echo "=== TF-IDF BASELINE ==="
+python baseline.py
+
+echo "=== STEP 2: TRAINING ==="
+python 02_train.py
+
+echo "=== STEP 3: EVALUATION ==="
+python 03_evaluation.py
+
+echo "=== STEP 4: INFERENCE ==="
+python 04_inference.py
+
+echo "=================================================="
+echo "Pipeline finished successfully at: $(date)"
+echo "=================================================="

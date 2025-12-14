@@ -1,143 +1,198 @@
-# Deep Learning Class (VITMMA19) Project Work template
+# Legal Text Decoder — Deep Learning Project (VITMMA19)
 
-[Complete the missing parts and delete the instruction parts before uploading.]
+## Project Information
 
-## Submission Instructions
+- **Selected Topic**: Legal Text Decoder
+- **Student Name**: Kozits Patrik
+- **Aiming for +1 Mark**: No
 
-[Delete this entire section after reading and following the instructions.]
+## Problem Statement
 
-### Project Levels
+The goal of this project is to build an NLP model that predicts how easy or difficult a paragraph from Hungarian legal documents (Terms and Conditions / General Terms of Use) is for an average user to understand.
 
-**Basic Level (for signature)**
-*   Containerization
-*   Data acquisition and analysis
-*   Data preparation
-*   Baseline (reference) model
-*   Model development
-*   Basic evaluation
+The model predicts a score on a **1–5** scale:
 
-**Outstanding Level (aiming for +1 mark)**
-*   Containerization
-*   Data acquisition and analysis
-*   Data cleansing and preparation
-*   Defining evaluation criteria
-*   Baseline (reference) model
-*   Incremental model development
-*   Advanced evaluation
-*   ML as a service (backend) with GUI frontend
-*   Creative ideas, well-developed solutions, and exceptional performance can also earn an extra grade (+1 mark).
+1. **Very hard / unclear**  
+2. **Hard**  
+3. **Medium (requires strong focus)**  
+4. **Understandable after reading**  
+5. **Easy / immediately understandable**
 
-### Data Preparation
+## Solution Overview
 
-**Important:** You must provide a script (or at least a precise description) of how to convert the raw database into a format that can be processed by the scripts.
-* The scripts should ideally download the data from there or process it directly from the current sharepoint location.
-* Or if you do partly manual preparation, then it is recommended to upload the prepared data format to a shared folder and access from there.
+This repository implements a full ML pipeline inside Docker:
 
-[Describe the data preparation process here]
+1. **Data download (optional)**: download and unpack the dataset ZIP if `/data/raw` is empty.
+2. **Data preprocessing**: parse Label Studio JSON exports, extract `(text, label)` pairs, and create `train/val/test` CSV files.
+3. **Baselines**:
+   - A simple heuristic baseline based on **word count quantiles**
+   - A classical ML baseline: **TF-IDF + Logistic Regression**
+4. **Model training**:
+   - Fine-tune **`bert-base-multilingual-cased`** with a classification head (5 classes)
+   - Early stopping using validation **F1-weighted**
+   - Save `model_best` and `model_last`
+5. **Evaluation**: evaluate `model_best` on the test set; log metrics, classification report, confusion matrix
+6. **Inference demo**: run the trained model on a few example texts and log predicted label + confidence + probabilities
 
-### Logging Requirements
+## Data Acquisition and Preparation
 
-The training process must produce a log file that captures the following essential information for grading:
+### Raw dataset format
 
-1.  **Configuration**: Print the hyperparameters used (e.g., number of epochs, batch size, learning rate).
-2.  **Data Processing**: Confirm successful data loading and preprocessing steps.
-3.  **Model Architecture**: A summary of the model structure with the number of parameters (trainable and non-trainable).
-4.  **Training Progress**: Log the loss and accuracy (or other relevant metrics) for each epoch.
-5.  **Validation**: Log validation metrics at the end of each epoch or at specified intervals.
-6.  **Final Evaluation**: Result of the evaluation on the test set (e.g., final accuracy, MAE, F1-score, confusion matrix).
+The raw dataset is a Label Studio export. The folder structure under `/data/raw` is expected to contain annotator directories, each containing JSON exports.
 
-The log file must be uploaded to `log/run.log` to the repository. The logs must be easy to understand and self explanatory. 
-Ensure that `src/utils.py` is used to configure the logger so that output is directed to stdout (which Docker captures).
+Ignored directories:
+- `consensus`
+- `sample`
 
-### Submission Checklist
+Some files that do not meet the requirements may be present; these are skipped automatically if not in Label Studio task-list format.
 
-Before submitting your project, ensure you have completed the following steps.
-**Please note that the submission can only be accepted if these minimum requirements are met.**
+### Automated preparation
 
-- [ ] **Project Information**: Filled out the "Project Information" section (Topic, Name, Extra Credit).
-- [ ] **Solution Description**: Provided a clear description of your solution, model, and methodology.
-- [ ] **Extra Credit**: If aiming for +1 mark, filled out the justification section.
-- [ ] **Data Preparation**: Included a script or precise description for data preparation.
-- [ ] **Dependencies**: Updated `requirements.txt` with all necessary packages and specific versions.
-- [ ] **Configuration**: Used `src/config.py` for hyperparameters and paths, contains at least the number of epochs configuration variable.
-- [ ] **Logging**:
-    - [ ] Log uploaded to `log/run.log`
-    - [ ] Log contains: Hyperparameters, Data preparation and loading confirmation, Model architecture, Training metrics (loss/acc per epoch), Validation metrics, Final evaluation results, Inference results.
-- [ ] **Docker**:
-    - [ ] `Dockerfile` is adapted to your project needs.
-    - [ ] Image builds successfully (`docker build -t dl-project .`).
-    - [ ] Container runs successfully with data mounted (`docker run ...`).
-    - [ ] The container executes the full pipeline (preprocessing, training, evaluation).
-- [ ] **Cleanup**:
-    - [ ] Removed unused files.
-    - [ ] **Deleted this "Submission Instructions" section from the README.**
+The preprocessing script:
 
-## Project Details
+- Detects the ZIP internal root directory (if the extracted ZIP contains one top-level folder).
+- Iterates through annotator folders.
+- For each JSON file:
+  - Loads Label Studio tasks (must be a list)
+  - Extracts `task["data"]["text"]`
+  - Extracts the label from `annotations[0]["result"][0]["value"]["choices"][0]`
+  - Converts the label to integer **1–5**
+- Creates:
+  - `/app/output/train.csv`
+  - `/app/output/val.csv`
+  - `/app/output/test.csv`
 
-### Project Information
+Splitting:
+- 80% train, 10% validation, 10% test
+- Stratified by label (`random_state=42`)
 
-- **Selected Topic**: [Enter Topic Name Here, options: AnkleAlign, Legal Text Decoder, Bull-flag detector, End-of-trip delay prediction]
-- **Student Name**: [Enter Your Name Here]
-- **Aiming for +1 Mark**: [Yes/No]
+### Final dataset sizes
 
-### Solution Description
+- Total labeled examples: **3744**
+- Train / Val / Test: **2995 / 374 / 375**
 
-[Provide a short textual description of the solution here. Explain the problem, the model architecture chosen, the training methodology, and the results.]
+## Configuration
 
-### Extra Credit Justification
+All main hyperparameters and paths are stored in `src/config.py`.
 
-[If you selected "Yes" for Aiming for +1 Mark, describe here which specific part of your work (e.g., innovative model architecture, extensive experimentation, exceptional performance) you believe deserves an extra mark.]
+Current configuration:
 
-### Docker Instructions
+- **Model**
+  - `MODEL_NAME = bert-base-multilingual-cased`
+  - `NUM_LABELS = 5`
+  - `MAX_LENGTH = 256`
 
-This project is containerized using Docker. Follow the instructions below to build and run the solution.
-[Adjust the commands that show how do build your container and run it with log output.]
+- **Training**
+  - `EPOCHS = 8`
+  - `TRAIN_BATCH_SIZE = 4`
+  - `EVAL_BATCH_SIZE = 8`
+  - `LEARNING_RATE = 2e-5`
+  - `WEIGHT_DECAY = 0.01`
+  - `EARLY_STOPPING_PATIENCE = 2`
 
-#### Build
+- **Paths**
+  - `PATH_TRAIN = /app/output/train.csv`
+  - `PATH_VAL   = /app/output/val.csv`
+  - `PATH_TEST  = /app/output/test.csv`
+  - `MODEL_BEST_DIR = /app/output/model_best`
+  - `MODEL_LAST_DIR = /app/output/model_last`
 
-Run the following command in the root directory of the repository to build the Docker image:
+## Results
+
+### Baseline 1 — Word-count heuristic (quantile thresholds)
+
+- Thresholds: 19.0, 31.0, 46.0, 70.0
+- **Accuracy:** 0.2987  
+- **F1-weighted:** 0.3148
+
+### Baseline 2 — TF-IDF + Logistic Regression
+
+- **Accuracy:** 0.4347  
+- **F1-weighted:** 0.4099
+
+### Fine-tuned Transformer — BERT (`bert-base-multilingual-cased`)
+
+Training device:
+- CUDA GPU: **NVIDIA GeForce GTX 1650**
+
+Model size:
+- Total parameters: **177,857,285**
+- Trainable parameters: **177,857,285**
+- Frozen parameters: **0**
+
+Best validation result saved as `model_best` (based on **val F1-weighted**):
+- Best observed val F1-weighted: **0.4379** (epoch 4)
+
+Final test evaluation (model_best):
+- **Test accuracy:** 0.4240  
+- **Test F1-weighted:** 0.4233  
+- Confusion matrix and classification report are printed in the log.
+
+### Quick comparison
+
+| Model | Accuracy | F1-weighted |
+|------|----------:|------------:|
+| Word-count heuristic | 0.2987 | 0.3148 |
+| TF-IDF + LR | **0.4347** | 0.4099 |
+| Fine-tuned BERT | 0.4240 | **0.4233** |
+
+## Docker Instructions
+
+### Build
+
+Build Image:
 
 ```bash
-docker build -t dl-project .
+docker build -t legal-text-decoder:1.0 .
+
 ```
 
-#### Run
+### Run
 
-To run the solution, use the following command. You must mount your local data directory to `/app/data` inside the container.
-
-**To capture the logs for submission (required), redirect the output to a file:**
+Run the container:
 
 ```bash
-docker run -v /absolute/path/to/your/local/data:/app/data dl-project > log/run.log 2>&1
+docker run --rm --gpus all -v "${PWD}/data:/data" -v "${PWD}/output:/app/output" legal-text-decoder:1.0 > log/run.log 2>&1
+
 ```
 
-*   Replace `/absolute/path/to/your/local/data` with the actual path to your dataset on your host machine that meets the [Data preparation requirements](#data-preparation).
-*   The `> log/run.log 2>&1` part ensures that all output (standard output and errors) is saved to `log/run.log`.
-*   The container is configured to run every step (data preprocessing, training, evaluation, inference).
+This command executes the full pipeline:
 
+- Data preprocessing
+- Baseline models
+- Model training
+- Evaluation
+- Inference
 
-### File Structure and Functions
+All logs are written to log/run.log.
 
-[Update according to the final file structure.]
+### Project structure
 
-The repository is structured as follows:
-
-- **`src/`**: Contains the source code for the machine learning pipeline.
-    - `01-data-preprocessing.py`: Scripts for loading, cleaning, and preprocessing the raw data.
-    - `02-training.py`: The main script for defining the model and executing the training loop.
-    - `03-evaluation.py`: Scripts for evaluating the trained model on test data and generating metrics.
-    - `04-inference.py`: Script for running the model on new, unseen data to generate predictions.
-    - `config.py`: Configuration file containing hyperparameters (e.g., epochs) and paths.
-    - `utils.py`: Helper functions and utilities used across different scripts.
-
-- **`notebook/`**: Contains Jupyter notebooks for analysis and experimentation.
-    - `01-data-exploration.ipynb`: Notebook for initial exploratory data analysis (EDA) and visualization.
-    - `02-label-analysis.ipynb`: Notebook for analyzing the distribution and properties of the target labels.
-
-- **`log/`**: Contains log files.
-    - `run.log`: Example log file showing the output of a successful training run.
-
-- **Root Directory**:
-    - `Dockerfile`: Configuration file for building the Docker image with the necessary environment and dependencies.
-    - `requirements.txt`: List of Python dependencies required for the project.
-    - `README.md`: Project documentation and instructions.
+```
+legal-text-decoder/
+├── data/
+│ └── raw/ # Raw Label Studio dataset exports (JSON files)
+│
+├── log/
+│ └── run.log # Full pipeline execution log (training, evaluation, inference)
+│
+├── notebook/
+│ ├── 01-data-exploration.ipynb # Exploratory data analysis (EDA)
+│ └── 02-label-analysis.ipynb # Label distribution and class balance analysis
+│
+├── src/
+│ ├── 00_download_and_unpack.py # Download and extract dataset ZIP if raw data is missing
+│ ├── 01_data_preprocessing.py # Parse Label Studio JSON files and create train/val/test CSVs
+│ ├── baseline_heuristic.py # Heuristic baseline using word-count thresholds
+│ ├── baseline.py # TF-IDF + Logistic Regression baseline model
+│ ├── 02_train.py # Fine-tuning BERT model with early stopping
+│ ├── 03_evaluation.py # Evaluation on test set (accuracy, F1, confusion matrix)
+│ ├── 04_inference.py # Inference demo on new example texts
+│ ├── config.py # Central configuration (paths, hyperparameters)
+│ └── utils.py # Logging utilities
+│
+├── Dockerfile # Docker image definition
+├── requirements.txt # Python dependencies with fixed versions
+├── run.sh # Script to execute the full pipeline inside the container
+└── README.md # Project documentation
+```

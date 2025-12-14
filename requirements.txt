@@ -1,10 +1,14 @@
-# NOTE: Extend this file with additional packages and specific versions required by your project.
-# For example, add dataset-specific libraries, experiment tracking or GPU tooling as needed.
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.1
+matplotlib==3.8.4
+tqdm==4.66.4
+requests==2.32.3
 
-pandas==2.2.2
-pandas==2.2.2
-scikit-learn==1.5.0
-matplotlib==3.9.0
+transformers==4.54.1
+datasets==3.1.0
+evaluate==0.4.3
+
+jupyter==1.0.0
+matplotlib==3.8.4
 seaborn==0.13.2
-torch==2.3.0
-torchvision==0.18.0
